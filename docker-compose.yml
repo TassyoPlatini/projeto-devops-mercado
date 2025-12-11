@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # 1. Banco de Dados (PostgreSQL)
+  db:
+    image: postgres:15-alpine
+    container_name: mercado_db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mercadodb
+    volumes:
+      # Persistência dos dados do banco
+      - postgres_data:/var/lib/postgresql/data
+      # Script de inicialização (cria a tabela)
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+
+  # 2. Backend (Node.js API)
+  backend:
+    build: ./backend
+    container_name: mercado_backend
+    environment:
+      # Conexão: postgres://usuario:senha@nome_do_servico_db:porta/nome_do_banco
+      DATABASE_URL: postgres://admin:password@db:5432/mercadodb
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+  # 3. Frontend (Nginx)
+  frontend:
+    build: ./frontend
+    container_name: mercado_frontend
+    ports:
+      - "8080:80"
+    volumes:
+      # ESPELHAMENTO (A mágica acontece aqui):
+      # Conecta sua pasta local ./frontend à pasta do servidor no container.
+      - ./frontend:/usr/share/nginx/html
+    networks:
+      - app-network
+
+# Definição dos volumes persistentes
+volumes:
+  postgres_data:
+
+# Definição das redes
+networks:
+  app-network:
+    driver: bridge
